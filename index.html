@@ -108,6 +108,7 @@ input,button,select{font-family:'Inter',sans-serif;}
 .btn-save{height:38px;padding:0 18px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;}
 .btn-save:hover{background:#0C447C;}
 .year-row{display:none;}
+.proj-header{position:sticky;top:0;background:#F7F6F3;z-index:50;padding-bottom:1rem;margin-bottom:0;}
 .copy-hint{font-size:9px;color:var(--color-text-tertiary,#B4B2A9);margin-top:3px;opacity:0;transition:opacity 0.15s;}
 .revit-card:hover .copy-hint{opacity:1;}
 .revit-card{position:relative;user-select:none;}
@@ -316,6 +317,16 @@ input,button,select{font-family:'Inter',sans-serif;}
           <div class="ic-icon"><svg class="ic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
           <div class="ic-label">Sent</div><div class="ic-sub">Transmittals</div>
         </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="group-header" onclick="toggleGroup(this)">
+      <div class="section-lbl" style="margin-bottom:0;">Emails</div>
+      <div class="collapse-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </div>
+    <div class="group-content">
+      <div id="email-list" style="padding-bottom:4px;">
+        <div style="text-align:center;padding:1rem;color:#B4B2A9;font-size:13px;">Sign in to see project emails</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -631,12 +642,7 @@ function openSharedFolder(path) {
 }
 
 function refreshProjects(){
-  // If running from GitHub Pages, just reload
-  if (window.location.protocol === 'https:') {
-    window.location.reload();
-  } else {
-    window.location.href = "mephelper://scan";
-  }
+  window.location.href = "mephelper://scan";
 }
 
 function statusBadge(s) {
@@ -1475,13 +1481,24 @@ async function initMsal() {
   }
 }
 
+function isInTeams() {
+  return window.location.ancestorOrigins && 
+    (window.location.ancestorOrigins[0] || "").includes("teams.microsoft.com") ||
+    window.parent !== window;
+}
+
 async function signIn() {
   try {
-    const result = await msalInstance.loginPopup({ scopes: SCOPES });
-    currentAccount = result.account;
-    graphToken = result.accessToken;
-    showLoggedIn();
-    showHomeView();
+    if (isInTeams()) {
+      // Use redirect flow for Teams
+      await msalInstance.loginRedirect({ scopes: SCOPES });
+    } else {
+      const result = await msalInstance.loginPopup({ scopes: SCOPES });
+      currentAccount = result.account;
+      graphToken = result.accessToken;
+      showLoggedIn();
+      showHomeView();
+    }
   } catch(e) { console.error("Login error:", e); }
 }
 
