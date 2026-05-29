@@ -1562,7 +1562,18 @@ async function loadProjectEmails(projNum) {
   }
 }
 
-window.addEventListener("load", initMsal);
+function waitForMsal(callback, attempts) {
+  attempts = attempts || 0;
+  if (typeof window.msal !== "undefined") {
+    callback();
+  } else if (attempts < 20) {
+    setTimeout(() => waitForMsal(callback, attempts + 1), 200);
+  } else {
+    console.error("MSAL failed to load");
+    showHomeView();
+  }
+}
+window.addEventListener("load", () => waitForMsal(initMsal));
 </script>
 </body>
 </html>
