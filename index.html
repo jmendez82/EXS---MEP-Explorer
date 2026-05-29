@@ -1462,6 +1462,19 @@ let msalInstance = null, currentAccount = null, graphToken = null;
 let inTeams = false;
 async function initMsal() {
   try {
+    // If this is the auth popup window, handle login and notify Teams
+    if (window.location.search.includes("auth=1")) {
+      msalInstance = new window.msal.PublicClientApplication(MSAL_CONFIG);
+      await msalInstance.initialize();
+      try {
+        const result = await msalInstance.loginPopup({ scopes: SCOPES });
+        microsoftTeams.authentication.notifySuccess(result.accessToken);
+      } catch(e) {
+        microsoftTeams.authentication.notifyFailure(e.toString());
+      }
+      return;
+    }
+
     try {
       await microsoftTeams.app.initialize();
       inTeams = true;
