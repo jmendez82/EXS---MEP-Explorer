@@ -1455,6 +1455,7 @@ const MSAL_CONFIG = {
   cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false }
 };
 const SCOPES = ["User.Read","Files.Read.All","Sites.Read.All","Mail.Read"];
+const SSO_SCOPE = "api://66f391b8-232d-4c9a-9b75-95c4c589bae8/access_as_user";
 const SP_DESIGN = "https://exsengineers.sharepoint.com/sites/EXSDesignteam";
 const SP_SERVER  = "https://exsengineers.sharepoint.com/sites/EXSServer";
 let msalInstance = null, currentAccount = null, graphToken = null;
@@ -1498,11 +1499,21 @@ async function initMsal() {
     } else {
       if (inTeams) {
         try {
-          const ctx = await microsoftTeams.app.getContext();
-          const hint = ctx?.user?.loginHint || "";
-          const r = await msalInstance.ssoSilent({ scopes: SCOPES, loginHint: hint });
-          currentAccount = r.account; graphToken = r.accessToken;
-          showLoggedIn(); showHomeView();
+          // Try Teams SSO first - get token directly from Teams
+          const teamsToken = await microsoftTeams.authentication.getAuthToken();
+          if (teamsToken) {
+            // Use Teams token to get Graph token via OBO flow or silent
+            const ctx = await microsoftTeams.app.getContext();
+            const hint = ctx?.user?.loginHint || ctx?.user?.userPrincipalName || "";
+            try {
+              const r = await msalInstance.ssoSilent({ scopes: SCOPES, loginHint: hint });
+              currentAccount = r.account; graphToken = r.accessToken;
+              showLoggedIn(); showHomeView();
+            } catch(e) {
+              // Silent failed, show login
+              showLoginView();
+            }
+          }
         } catch(e) { showLoginView(); }
       } else {
         showLoginView();
