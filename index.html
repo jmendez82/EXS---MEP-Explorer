@@ -631,7 +631,12 @@ function openSharedFolder(path) {
 }
 
 function refreshProjects(){
-  window.location.href = "mephelper://scan";
+  // If running from GitHub Pages, just reload
+  if (window.location.protocol === 'https:') {
+    window.location.reload();
+  } else {
+    window.location.href = "mephelper://scan";
+  }
 }
 
 function statusBadge(s) {
