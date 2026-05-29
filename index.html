@@ -1444,18 +1444,25 @@ let msalInstance = null, currentAccount = null, graphToken = null;
 
 async function initMsal() {
   try {
+    console.log("MSAL init starting...");
     msalInstance = new window.msal.PublicClientApplication(MSAL_CONFIG);
     await msalInstance.initialize();
+    console.log("MSAL initialized");
     const accounts = msalInstance.getAllAccounts();
+    console.log("Accounts found:", accounts.length);
     if (accounts.length > 0) {
       currentAccount = accounts[0];
       await acquireToken();
       showLoggedIn();
       showHomeView();
     } else {
+      console.log("No accounts - showing login");
       showLoginView();
     }
-  } catch(e) { console.error("MSAL init error:", e); showHomeView(); }
+  } catch(e) { 
+    console.error("MSAL init error:", e); 
+    showLoginView(); // Show login instead of home on error
+  }
 }
 
 async function signIn() {
