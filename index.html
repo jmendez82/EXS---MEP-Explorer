@@ -1444,7 +1444,7 @@ let msalInstance = null, currentAccount = null, graphToken = null;
 
 async function initMsal() {
   try {
-    msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+    msalInstance = new window.msal.PublicClientApplication(MSAL_CONFIG);
     await msalInstance.initialize();
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
