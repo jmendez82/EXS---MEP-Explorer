@@ -6,6 +6,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8c3R5bGU+CiAgICBjaXJjbGUgeyBmaWxsOiBub25lOyBzdHJva2U6ICMxYTFhMWE7IHN0cm9rZS13aWR0aDogMzsgfQogICAgdGV4dCB7IGZpbGw6ICMxYTFhMWE7IH0KICAgIEBtZWRpYSAocHJlZmVycy1jb2xvci1zY2hlbWU6IGRhcmspIHsKICAgICAgY2lyY2xlIHsgc3Ryb2tlOiAjZmZmZmZmOyB9CiAgICAgIHRleHQgeyBmaWxsOiAjZmZmZmZmOyB9CiAgICB9CiAgPC9zdHlsZT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyOSIvPgogIDx0ZXh0IHg9IjMyIiB5PSIzOSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjIxIiBsZXR0ZXItc3BhY2luZz0iMC41Ij5FWFM8L3RleHQ+Cjwvc3ZnPg==" />
 <title>MEP Projects — EXS Engineers</title>
 <script src="msal-browser.min.js"></script>
+<script src="https://res.cdn.office.net/teams-js/2.22.0/js/MicrosoftTeams.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -1458,46 +1459,66 @@ const SP_DESIGN = "https://exsengineers.sharepoint.com/sites/EXSDesignteam";
 const SP_SERVER  = "https://exsengineers.sharepoint.com/sites/EXSServer";
 let msalInstance = null, currentAccount = null, graphToken = null;
 
+let inTeams = false;
 async function initMsal() {
   try {
-    console.log("MSAL init starting...");
+    try {
+      await microsoftTeams.app.initialize();
+      inTeams = true;
+    } catch(e) { inTeams = false; }
+
     msalInstance = new window.msal.PublicClientApplication(MSAL_CONFIG);
     await msalInstance.initialize();
-    console.log("MSAL initialized");
+
+    const redirectResult = await msalInstance.handleRedirectPromise();
+    if (redirectResult) {
+      currentAccount = redirectResult.account;
+      graphToken = redirectResult.accessToken;
+      showLoggedIn(); showHomeView(); return;
+    }
+
     const accounts = msalInstance.getAllAccounts();
-    console.log("Accounts found:", accounts.length);
     if (accounts.length > 0) {
       currentAccount = accounts[0];
       await acquireToken();
-      showLoggedIn();
-      showHomeView();
+      showLoggedIn(); showHomeView();
     } else {
-      console.log("No accounts - showing login");
-      showLoginView();
+      if (inTeams) {
+        try {
+          const ctx = await microsoftTeams.app.getContext();
+          const hint = ctx?.user?.loginHint || "";
+          const r = await msalInstance.ssoSilent({ scopes: SCOPES, loginHint: hint });
+          currentAccount = r.account; graphToken = r.accessToken;
+          showLoggedIn(); showHomeView();
+        } catch(e) { showLoginView(); }
+      } else {
+        showLoginView();
+      }
     }
-  } catch(e) { 
-    console.error("MSAL init error:", e); 
-    showLoginView(); // Show login instead of home on error
-  }
-}
-
-function isInTeams() {
-  return window.location.ancestorOrigins && 
-    (window.location.ancestorOrigins[0] || "").includes("teams.microsoft.com") ||
-    window.parent !== window;
+  } catch(e) { console.error("MSAL init error:", e); showLoginView(); }
 }
 
 async function signIn() {
   try {
-    if (isInTeams()) {
-      // Use redirect flow for Teams
-      await msalInstance.loginRedirect({ scopes: SCOPES });
+    if (inTeams) {
+      microsoftTeams.authentication.authenticate({
+        url: window.location.origin + window.location.pathname + "?auth=1",
+        width: 600, height: 535,
+        successCallback: async () => {
+          const accounts = msalInstance.getAllAccounts();
+          if (accounts.length > 0) {
+            currentAccount = accounts[0];
+            await acquireToken();
+            showLoggedIn(); showHomeView();
+          }
+        },
+        failureCallback: (e) => console.error("Teams auth failed:", e)
+      });
     } else {
       const result = await msalInstance.loginPopup({ scopes: SCOPES });
       currentAccount = result.account;
       graphToken = result.accessToken;
-      showLoggedIn();
-      showHomeView();
+      showLoggedIn(); showHomeView();
     }
   } catch(e) { console.error("Login error:", e); }
 }
