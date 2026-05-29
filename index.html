@@ -1465,17 +1465,8 @@ let inTeams = false;
 async function initMsal() {
   try {
     // If this is the auth popup window, handle login and notify Teams
-    if (window.location.search.includes("auth=1")) {
-      msalInstance = new window.msal.PublicClientApplication(MSAL_CONFIG);
-      await msalInstance.initialize();
-      try {
-        const result = await msalInstance.loginPopup({ scopes: SCOPES });
-        microsoftTeams.authentication.notifySuccess(result.accessToken);
-      } catch(e) {
-        microsoftTeams.authentication.notifyFailure(e.toString());
-      }
-      return;
-    }
+    // Handle redirect response on page load
+    // (no auth=1 popup needed with redirect flow)
 
     try {
       await microsoftTeams.app.initialize();
@@ -1521,26 +1512,8 @@ async function initMsal() {
 
 async function signIn() {
   try {
-    if (inTeams) {
-      microsoftTeams.authentication.authenticate({
-        url: window.location.origin + window.location.pathname + "?auth=1",
-        width: 600, height: 535,
-        successCallback: async () => {
-          const accounts = msalInstance.getAllAccounts();
-          if (accounts.length > 0) {
-            currentAccount = accounts[0];
-            await acquireToken();
-            showLoggedIn(); showHomeView();
-          }
-        },
-        failureCallback: (e) => console.error("Teams auth failed:", e)
-      });
-    } else {
-      const result = await msalInstance.loginPopup({ scopes: SCOPES });
-      currentAccount = result.account;
-      graphToken = result.accessToken;
-      showLoggedIn(); showHomeView();
-    }
+    // Always use redirect - works in both Teams and browser
+    await msalInstance.loginRedirect({ scopes: SCOPES });
   } catch(e) { console.error("Login error:", e); }
 }
 
